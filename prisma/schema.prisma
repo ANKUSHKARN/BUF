@@ -1,0 +1,224 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+//generator client {
+//  provider = "prisma-client"
+//  output   = "../src/generated/prisma"
+//}
+
+//datasource db {
+//  provider = "postgresql"
+//}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  BROTHER
+}
+
+enum EmploymentStatus {
+  EMPLOYED
+  UNEMPLOYED
+}
+
+enum ContributionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WithdrawalType {
+  EMERGENCY
+  NON_EMERGENCY
+}
+
+enum VoteType {
+  APPROVE
+  REJECT
+}
+
+model User {
+  id                  String           @id @default(auto()) @map("_id") @db.ObjectId
+  name                String
+  email               String           @unique
+  password            String
+  mobile              String           @unique
+  role                Role
+  employmentStatus    EmploymentStatus
+  monthlyContribution Float
+  waiverRemaining     Int              @default(1)
+  penaltyOverride     Float?
+  isActive            Boolean          @default(true)
+  joinDate            DateTime         @default(now())
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  // 🔗 Relations
+  contributions     Contribution[]
+  loans             Loan[]
+  withdrawals       Withdrawal[]
+  investments       Investment[]
+  votes             Vote[]
+  loanRepayments    LoanRepayment[]
+  investmentReturns InvestmentReturn[]
+}
+
+model ContributionProof {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  contributionId String       @db.ObjectId
+  contribution   Contribution @relation(fields: [contributionId], references: [id])
+  fileUrl        String
+  filePublicId   String
+  createdAt      DateTime     @default(now())
+}
+
+model Contribution {
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String              @db.ObjectId
+  user          User                @relation(fields: [userId], references: [id])
+  month         String
+  baseAmount    Float
+  penaltyAmount Float
+  totalPaid     Float
+  waiverUsed    Boolean             @default(false)
+  status        ContributionStatus  @default(PENDING)
+  proofs        ContributionProof[]
+  createdAt     DateTime            @default(now())
+
+  @@unique([userId, month])
+}
+
+model LoanRepaymentProof {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  loanRepaymentId String        @db.ObjectId
+  loanRepayment   LoanRepayment @relation(fields: [loanRepaymentId], references: [id])
+  fileUrl         String
+  filePublicId    String
+  createdAt       DateTime      @default(now())
+}
+
+model Loan {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String          @db.ObjectId
+  user              User            @relation(fields: [userId], references: [id])
+  principalAmount   Float
+  amountPaid        Float           @default(0)
+  outstandingAmount Float
+  status            RequestStatus   @default(PENDING)
+  repayments        LoanRepayment[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model LoanRepayment {
+  id        String               @id @default(auto()) @map("_id") @db.ObjectId
+  loanId    String               @db.ObjectId
+  loan      Loan                 @relation(fields: [loanId], references: [id])
+  userId    String               @db.ObjectId
+  user      User                 @relation(fields: [userId], references: [id])
+  amount    Float
+  status    ApprovalStatus       @default(PENDING)
+  proofs    LoanRepaymentProof[]
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+}
+
+model Withdrawal {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String         @db.ObjectId
+  user      User           @relation(fields: [userId], references: [id])
+  type      WithdrawalType
+  amount    Float
+  status    RequestStatus  @default(PENDING)
+  createdAt DateTime       @default(now())
+}
+
+model Investment {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String             @db.ObjectId
+  user        User               @relation(fields: [userId], references: [id])
+  amountTaken Float
+  returnPaid  Float              @default(0)
+  status      RequestStatus      @default(PENDING)
+  returns     InvestmentReturn[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model InvestmentReturn {
+  id           String                  @id @default(auto()) @map("_id") @db.ObjectId
+  investmentId String                  @db.ObjectId
+  investment   Investment              @relation(fields: [investmentId], references: [id])
+  userId       String                  @db.ObjectId
+  user         User                    @relation(fields: [userId], references: [id])
+  amount       Float
+  status       ApprovalStatus          @default(PENDING)
+  proofs       InvestmentReturnProof[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+}
+
+model InvestmentReturnProof {
+  id                 String           @id @default(auto()) @map("_id") @db.ObjectId
+  investmentReturnId String           @db.ObjectId
+  investmentReturn   InvestmentReturn @relation(fields: [investmentReturnId], references: [id])
+  fileUrl            String
+  filePublicId       String
+  createdAt          DateTime         @default(now())
+}
+
+model Vote {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  requestId   String
+  requestType String
+  voterId     String   @db.ObjectId
+  voter       User     @relation(fields: [voterId], references: [id])
+  vote        VoteType
+  createdAt   DateTime @default(now())
+
+  @@unique([requestId, voterId])
+}
+
+model Settings {
+  id                       String   @id @default(auto()) @map("_id") @db.ObjectId
+  penaltyAmount            Float
+  gracePeriodDays          Int
+  emergencyReserve         Float
+  votingThresholdEmergency Float
+  votingThresholdNormal    Float
+  createdAt                DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String?
+  actionType  String
+  referenceId String?
+  amount      Float?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}
