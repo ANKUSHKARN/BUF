@@ -18,6 +18,13 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/brother", brotherRoutes);
 app.use("/api/brother/me", userRoutes);
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    uptime: process.uptime(),
+    timestamp: new Date()
+  });
+});
 
 app.get("/", (req, res) => {
   res.send("Brother Unity Fund API Running");
