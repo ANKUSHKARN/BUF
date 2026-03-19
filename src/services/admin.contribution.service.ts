@@ -16,6 +16,7 @@ export const getAllContributions = async () => {
           email: true,
         },
       },
+      proofs: true,
     },
   });
 
